@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openjck"
+version = "0.3.0"
+description = "OpenJCK Python SDK - Observability and reliability runtime for autonomous AI agent systems"
+readme = "README.md"
+license = {text = "Proprietary"}
+authors = [{name = "OpenJCK Team"}]
+requires-python = ">=3.9"
+dependencies = [
+    "anthropic>=0.45.0",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.urls]
+Homepage = "https://openjck.cloud"
+Repository = "https://github.com/openjck/openjck-python"
+
+[tool.setuptools]
+packages = ["openjck"]

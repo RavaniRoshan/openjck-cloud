@@ -1,0 +1,69 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+.serverless/
+.vercel
+
+# Dependencies
+node_modules
+__pycache__
+*.pyc
+.Python
+env
+venv
+.venv
+pip-log.txt
+pip-delete-this-directory
+.tox
+.coverage
+.coverage.*
+cache
+.pytest_cache
+
+# Build outputs
+.next
+.out
+dist
+build
+*.egg-info
+.eggs
+
+# IDE and OS
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs and databases
+*.log
+*.sqlite
+*.db
+
+# OpenJCK specific
+.openjck/
+.openjck-fallback.jsonl
+.openjck-failed-alerts.jsonl
+
+# Temporary files
+tmp
+temp
+
+# Local development artifacts (not for repo)
+.serverless/
+.vercel
+
+# Testing artifacts
+coverage/
+.nyc_output
+
+# OS generated files
+ehthumbs.db
+Desktop.ini
+
+# OpenJCK internal docs (keep locally, don't push)
+skills/
+openjck-master-truth.md
+docs/internal/
