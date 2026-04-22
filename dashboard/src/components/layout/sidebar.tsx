@@ -26,11 +26,11 @@ const navigation = {
   protect: [
     // Placeholder for future guard rules page
   ],
-  debug: [
-    { name: "Organization", href: "/settings/org", icon: Building2 },
+  tools: [
     { name: "API Keys", href: "/settings/api-keys", icon: Key },
     { name: "AI Keys", href: "/settings/ai-keys", icon: Sparkles },
     { name: "Alert Hooks", href: "/settings/alerts", icon: Bell },
+    { name: "Organization", href: "/settings/org", icon: Building2 },
   ],
 };
 
@@ -115,13 +115,13 @@ export function Sidebar() {
           </div>
         </div>
 
-        {/* DEBUG Section */}
-        <div>
-          <h2 className="px-3 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--oj-text-muted)] mb-2">
-            Debug
-          </h2>
-          <div className="space-y-1">
-            {navigation.debug.map((item) => {
+{/* CONFIGURE Section */}
+  <div>
+    <h2 className="px-3 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--oj-text-muted)] mb-2">
+      Configure
+    </h2>
+    <div className="space-y-1">
+      {navigation.tools.map((item: { name: string; href: string; icon: React.ComponentType<{ className?: string }> }) => {
               const isActive = pathname === item.href;
               return (
                 <Link
