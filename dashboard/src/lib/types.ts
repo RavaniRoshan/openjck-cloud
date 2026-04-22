@@ -30,8 +30,17 @@ export interface ClawSession {
   created_at: string;
   updated_at: string;
   parent_session_id: string | null;
+  has_recording: boolean;
+  guard_strikes: Record<string, number> | null;
+  guard_termination: {
+    guard_type: string;
+    detail: string;
+    triggered_at: string;
+    strike: number;
+    current_value: number;
+    threshold: number;
+  } | null;
   // Replay fields (Phase 4)
-  has_recording?: boolean;
   recording_step_count?: number;
 }
 
@@ -144,15 +153,18 @@ export interface FleetActivityEvent {
 }
 
 // AI Fix result types
-export interface AiFixResult {
-  root_cause: string;
-  fix: string;
-  fix_type: "prompt" | "tool_definition" | "guard_config" | "code" | "unknown";
-  confidence: "high" | "medium" | "low";
-  verification_test: string;
-  analyzed_at: string;
-  based_on_previous?: boolean; // Present on deeper analysis results
-}
+ export interface AiFixResult {
+   root_cause: string;
+   fix: string;
+   fix_type: "prompt" | "tool_definition" | "guard_config" | "code" | "unknown";
+   confidence: "high" | "medium" | "low";
+   verification_test: string;
+   analyzed_at: string;
+   based_on_previous?: boolean; // Present on deeper analysis results
+   _meta?: {
+     key_mode: 'byok' | 'hosted';
+   };
+ }
 
 export type AiFixState = 'idle' | 'loading' | 'result' | 'error' | 'rate_limited';
 
@@ -180,12 +192,13 @@ export const queryKeys = {
      activity: (limit: number) => ['fleet', 'activity', limit] as const,
    },
   apiKeys: {
+    all: ['api-keys'] as const,
     list: (orgId: string) => ['api-keys', 'list', orgId] as const,
   },
   org: {
     detail: (orgId: string) => ['org', orgId] as const,
     members: (orgId: string) => ['org', 'members', orgId] as const,
   },
-  alerts: { all: (orgId: string) => ['alerts', orgId] as const },
+  alerts: { all: ['alerts'] as const },
   billing: { usage: (orgId: string) => ['billing', 'usage', orgId] as const },
 };

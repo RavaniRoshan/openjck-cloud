@@ -26,6 +26,25 @@ Agents run anywhere — AWS, GCP, Azure, on-prem. They post events to OpenJCK Cl
 
 ---
 
+## 🚫 What's NOT in v1
+
+These features are intentionally excluded from v1 to focus on core functionality. They're on the roadmap for future releases.
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **Redis** | ❌ Using Supabase | Rate limiting uses Supabase (slower but sufficient at v1 scale). Redis may be added for higher throughput later. |
+| **Per-user API keys** | ❌ Org-level only | All API keys are scoped to organizations. User-level keys may be added in future versions. |
+| **EU data residency** | ❌ US-only | All data is stored in US regions. EU/GDPR-compliant regions are on the roadmap. |
+| **SOC 2 certification** | ❌ On roadmap | Security compliance is in progress but not yet certified. |
+| **Streaming SDK support** | ❌ Sync only | SDK only supports synchronous calls. Streaming/iterative responses are planned. |
+| **AI Fix rate limits** | ⚠️ 10/hour | Limited to 10 analyses per session per hour. Resets hourly. |
+| **Recording retention** | ⚠️ 30 days | Step recordings are retained for 30 days by default. Configurable via SDK. |
+| **Custom pricing map** | ❌ SDK-only | Pricing maps must be set via SDK constructor, not in dashboard UI. |
+| **Multi-region deployment** | ❌ Single region | Deployed to a single geographic region. Multi-region failover is planned. |
+| **Billing integration** | ❌ Manual | No automated billing. Usage is tracked; manual invoicing in v1. |
+
+---
+
 ## 🚀 Quick Start
 
 ### For Users (Dashboard)

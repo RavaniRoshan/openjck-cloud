@@ -1,12 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
-import { formatDistanceToNow } from "date-fns";
-import { Badge } from "@/components/ui/badge";
+import { formatDistanceToNow, format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SessionStatus } from "@/lib/types";
 import type { FleetAgent } from "@/lib/types";
+import { useUIStore } from "@/stores/ui-store";
+import { Repeat, Coins } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { StatusBadge } from "@/components/ui/status-badge";
 
 interface FleetCardProps {
   agent: FleetAgent;
@@ -21,32 +24,23 @@ function formatDuration(seconds: number): string {
   return `${hours}h ${mins % 60}m`;
 }
 
-// Get status badge component
-function StatusBadge({ status }: { status: SessionStatus }) {
-  const badgeClasses = {
-    [SessionStatus.Running]: "bg-amber-500/10 text-amber-500 border-0 font-medium animate-amber-pulse",
-    [SessionStatus.Completed]: "bg-green-500/10 text-green-500 border-0 font-medium",
-    [SessionStatus.Failed]: "bg-red-500/10 text-red-500 border-0 font-medium",
-    [SessionStatus.Terminated]: "bg-muted text-muted-foreground border border-border font-medium",
-  };
-
-  return (
-    <Badge className={badgeClasses[status]}>
-      {status.toUpperCase()}
-    </Badge>
-  );
-}
-
 const FleetCardInner = ({ agent }: FleetCardProps) => {
   const [showParent, setShowParent] = useState(false);
+  const openSession = useUIStore((state) => state.openSession);
 
-  // Border classes based on status
-  const borderClass = {
-    [SessionStatus.Running]: "border-l-[3px] border-l-amber-500 hover:shadow-[0_0_0_1px_rgba(245,158,11,0.3)]",
-    [SessionStatus.Completed]: "border-l-[3px] border-l-green-500",
-    [SessionStatus.Failed]: "border-l-[3px] border-l-red-500",
-    [SessionStatus.Terminated]: "border-l-[3px] border-l-zinc-500",
+  // Determine card styling based on status
+  const isRunning = agent.status === SessionStatus.Running;
+  const isFailed = agent.status === SessionStatus.Failed;
+
+  const cardBaseClasses = "rounded-lg border transition-all duration-200 hover:-translate-y-1 hover:shadow-card cursor-pointer";
+  const statusClasses = {
+    [SessionStatus.Running]: "bg-[var(--oj-running-card-gradient)] border-l-3 border-l-amber-500 shadow-shadow-glow-amber",
+    [SessionStatus.Completed]: "bg-[var(--oj-card-gradient)] border-l-3 border-l-emerald-500",
+    [SessionStatus.Failed]: "bg-[var(--oj-failed-card-gradient)] border-l-3 border-l-[var(--oj-danger)]",
+    [SessionStatus.Terminated]: "bg-[var(--oj-card-gradient)] border-l-3 border-l-slate-500",
   }[agent.status];
+
+  const textCostColor = isRunning ? "text-amber-400" : "text-[var(--oj-text-primary)]";
 
   // Calculate duration
   const startedAt = new Date(agent.started_at).getTime();
@@ -57,49 +51,84 @@ const FleetCardInner = ({ agent }: FleetCardProps) => {
   return (
     <div
       className={cn(
-        "rounded-lg border border-border bg-card p-4 flex flex-col gap-3 min-h-[140px] transition-shadow",
-        borderClass
+        cardBaseClasses,
+        statusClasses,
+        "p-4 flex flex-col gap-3 min-h-[140px]"
       )}
+      onClick={() => openSession(agent.session_id)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openSession(agent.session_id);
+        }
+      }}
+      aria-label={`View agent ${agent.claw_name}, status: ${agent.status}`}
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
-        <div className="font-mono font-bold text-sm truncate flex-1" title={agent.claw_name}>
+        <div className="font-mono font-bold text-sm truncate flex-1 text-[var(--oj-text-primary)]" title={agent.claw_name}>
           {agent.claw_name}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {agent.loop_detected && (
-            <span className="text-amber-500" title="Loop detected">
-              ⚠
-            </span>
-          )}
+           {agent.loop_detected && (
+             <Repeat className="h-4 w-4 text-amber-500" />
+           )}
           <StatusBadge status={agent.status} />
         </div>
       </div>
 
       {/* Body */}
-      <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono flex-1">
+      <div className="flex items-center gap-3 text-xs text-[var(--oj-text-muted)] font-mono flex-1">
         <span>{agent.steps} steps</span>
         <span>·</span>
         <span>{agent.tool_calls} tools</span>
         <span>·</span>
-        <span className="text-amber">${agent.total_cost_usd.toFixed(4)}</span>
+        <span className={cn("flex items-center gap-1", textCostColor)}>
+          <Coins className="h-3 w-3" />
+          ${agent.total_cost_usd.toFixed(4)}
+        </span>
       </div>
 
-      {/* Footer */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border">
-        <div className="flex items-center gap-2">
-          <span>Started {startedAgo}</span>
-          <span>·</span>
-          <span>{formatDuration(durationSeconds)}</span>
-        </div>
+       {/* Footer */}
+       <div className="flex items-center justify-between text-xs font-mono text-[var(--oj-text-muted)] pt-2 border-t border-[var(--oj-border)]">
+         <div className="flex items-center gap-2">
+           <Tooltip>
+             <TooltipTrigger>
+               <span className="cursor-help">Started {startedAgo}</span>
+             </TooltipTrigger>
+             <TooltipContent>
+               {format(new Date(startedAt), "MMM d, yyyy HH:mm:ss O")}
+             </TooltipContent>
+           </Tooltip>
+           <span>·</span>
+           <span>{formatDuration(durationSeconds)}</span>
+         </div>
 
-        {agent.parent_session_id && (
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setShowParent(!showParent)}
-              className="text-xs text-amber hover:underline"
-            >
-              ↑ from {showParent ? agent.parent_session_id.slice(0, 8) + "..." : "parent"}
+         {agent.parent_session_id && (
+           <div className="flex items-center gap-1">
+             <button
+               onClick={(e) => {
+                 e.stopPropagation();
+                 setShowParent(!showParent);
+                 openSession(agent.parent_session_id!);
+               }}
+               className="text-xs text-amber-400 hover:underline flex items-center gap-1"
+             >
+               ↑ from{" "}
+               <Tooltip>
+                 <TooltipTrigger>
+                   <span className="cursor-help font-mono">
+                     {showParent ? agent.parent_session_id.slice(0, 8) + "..." : "parent"}
+                   </span>
+                 </TooltipTrigger>
+                 {showParent && (
+                   <TooltipContent>
+                     {agent.parent_session_id}
+                   </TooltipContent>
+                 )}
+               </Tooltip>
             </button>
           </div>
         )}
@@ -107,7 +136,11 @@ const FleetCardInner = ({ agent }: FleetCardProps) => {
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 text-xs"
+          className="h-6 text-xs text-[var(--oj-text-secondary)] hover:text-[var(--oj-text-primary)] hover:bg-[var(--oj-surface-hover)]"
+          onClick={(e) => {
+            e.stopPropagation();
+            openSession(agent.session_id);
+          }}
         >
           View Trace →
         </Button>
@@ -119,7 +152,6 @@ const FleetCardInner = ({ agent }: FleetCardProps) => {
 export const FleetCard = React.memo(
   FleetCardInner,
   (prev, next) => {
-    // Custom equality check
     return (
       prev.agent.session_id === next.agent.session_id &&
       prev.agent.status === next.agent.status &&

@@ -12,15 +12,21 @@ if (ANTHROPIC_API_KEY) {
  * Analyze a failed session using Claude
  * @param {string} systemPrompt - The system prompt (verbatim from spec)
  * @param {string} userPrompt - The user prompt (dynamically built)
+ * @param {Object} [customClient] - Optional Anthropic client (for BYOK)
  * @returns {Promise<Object>} - Claude's response parsed as JSON
  */
-export async function analyzeSession(systemPrompt, userPrompt) {
-  if (!anthropic) {
+export async function analyzeSession(systemPrompt, userPrompt, customClient = null) {
+  const client = customClient || anthropic;
+
+  if (!client) {
+    if (process.env.NODE_ENV !== 'production') {
+      return getMockResult(userPrompt);
+    }
     throw new Error('Anthropic API key not configured. Set ANTHROPIC_API_KEY environment variable.');
   }
 
   try {
-    const response = await anthropic.messages.create({
+    const response = await client.messages.create({
       model: 'claude-sonnet-4-6-20250319',
       max_tokens: 4096,
       system: systemPrompt,
@@ -71,4 +77,21 @@ export async function analyzeSession(systemPrompt, userPrompt) {
     }
     throw err;
   }
+}
+
+function getMockResult(userPrompt) {
+  const hasLoop = userPrompt.includes('loop') || userPrompt.includes('Loop');
+  return {
+    root_cause: hasLoop
+      ? 'The agent prompt lacks a termination condition for pagination, causing it to repeatedly navigate to the same URL when no next page exists. The browser.navigate tool returns the same DOM, but the agent interprets it as a new page.'
+      : 'The agent encountered an API rate limit because it was making requests without exponential backoff or retry logic.',
+    fix: hasLoop
+      ? 'Add a pagination guard to the prompt: "Before navigating to the next page, verify the next page URL differs from the current URL. If the URL is the same, stop and return results." Also add a loop guard config: { "loop_threshold": 2 } to terminate after 2 consecutive identical tool calls.'
+      : 'Add retry logic with exponential backoff to the tool definition. Set the rate_limit guard config to detect 429 responses and wait before retrying.',
+    fix_type: hasLoop ? 'prompt' : 'tool_definition',
+    confidence: hasLoop ? 'high' : 'medium',
+    verification_test: hasLoop
+      ? 'assert session.loop_detected == False\nassert session.steps <= expected_steps + 1'
+      : 'assert session.status != "failed" or "rate limit" not in session.failure_root_cause',
+  };
 }

@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "deploy": {
+      "source": "vercel/vercel-deploy-claude-code-plugin",
+      "sourceType": "github",
+      "computedHash": "89611e2b32979533b8031a208ba709f9614db09f011ca09d27a56824ded76f5c"
+    },
+    "deploy-to-vercel": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "03e0eaaa9bf13ba1e7ffa387f5893de6f324c0868c627001f179395a8feaa7c9"
+    },
+    "deployments-cicd": {
+      "source": "vercel/vercel-plugin",
+      "sourceType": "github",
+      "computedHash": "706d6de6c9c642f0f1370a8e4df96ba174d09d581c240dabc3feb7b365033037"
+    },
+    "render-deploy": {
+      "source": "openai/skills",
+      "sourceType": "github",
+      "computedHash": "3d5d532563bea44a0bd852b9d890fea848e1549035638e3ca119f0016bfb4632"
+    },
+    "supabase": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "computedHash": "cb675a889c60172febe84740e7c22b600c8241c390deaff3d368c408f10dffdf"
+    },
+    "supabase-postgres-best-practices": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "computedHash": "d606a1146be6d54fb9e73f718b5320b9acac5ff2ba2d7230a555df4b5a923b4a"
+    }
+  }
+}

@@ -71,17 +71,20 @@ router.post('/', async (req, res) => {
           break;
         }
 
-        case 'session.step': {
-          const usage = event.usage || {};
-          const request = event.request || {};
-          
-          // Accumulate tokens
-          const updated = await accumulateTokens(sessionId, orgId, {
-            input_tokens: usage.input_tokens || 0,
-            output_tokens: usage.output_tokens || 0,
-            model: request.model || 'claude-sonnet-4',
-            tool_call_count: usage.tool_call_count || 0,
-          });
+         case 'session.step': {
+           const usage = event.usage || {};
+           const request = event.request || {};
+           const sdk = event.sdk || {};
+           const provider = sdk.provider;
+           
+           // Accumulate tokens
+           const updated = await accumulateTokens(sessionId, orgId, {
+             input_tokens: usage.input_tokens || 0,
+             output_tokens: usage.output_tokens || 0,
+             model: request.model || 'claude-sonnet-4',
+             tool_call_count: usage.tool_call_count || 0,
+             provider: provider,
+           });
 
           // Write step packet if provided
           if (event.step_packet) {

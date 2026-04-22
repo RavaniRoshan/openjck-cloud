@@ -1,8 +1,8 @@
 "use client";
 
-import { Bell, Search, User, Wifi, WifiOff } from "lucide-react";
+import { Bell, Search, User, Menu } from "lucide-react";
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useSSEStore } from "@/stores/sse-store";
 import { cn } from "@/lib/utils";
+import { createBrowserClient } from "@/lib/supabase/client";
 
 function formatTime(date: Date) {
   return date.toLocaleTimeString("en-US", {
@@ -21,10 +22,16 @@ function formatTime(date: Date) {
   });
 }
 
-export function Topbar() {
+interface TopbarProps {
+  onMenuClick?: () => void;
+}
+
+export function Topbar({ onMenuClick }: TopbarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [currentTime, setCurrentTime] = useState(formatTime(new Date()));
   const sseStatus = useSSEStore((state) => state.status);
+  const sseStore = useSSEStore();
 
   // Update clock every second
   useEffect(() => {
@@ -46,18 +53,27 @@ export function Topbar() {
   ];
 
   return (
-    <header className="topbar flex items-center justify-between px-4">
-      {/* Left side: Breadcrumb */}
+    <header className="topbar flex items-center justify-between px-4 bg-[var(--oj-topbar-bg)] backdrop-blur-[12px] border-b border-[var(--oj-border-glass)]">
+      {/* Left side: Menu button (mobile) + Breadcrumb */}
       <div className="flex items-center gap-2 flex-1">
-        <nav className="flex items-center gap-2 text-sm text-muted-foreground">
+        {onMenuClick && (
+          <button
+            onClick={onMenuClick}
+            className="lg:hidden p-1 hover:bg-[var(--oj-surface-hover)] rounded-md transition-colors"
+            aria-label="Open menu"
+          >
+            <Menu className="h-5 w-5 text-[var(--oj-text-secondary)]" />
+          </button>
+        )}
+        <nav className="flex items-center gap-2 text-sm text-[var(--oj-text-muted)] truncate">
           {breadcrumbItems.map((item, index) => (
             <span key={index} className="flex items-center gap-2">
-              {index > 0 && <span className="text-muted-foreground/50">/</span>}
+              {index > 0 && <span className="text-[var(--oj-text-muted)]/50">/</span>}
               <span
                 className={cn(
                   index === breadcrumbItems.length - 1
-                    ? "text-foreground font-medium"
-                    : "hover:text-foreground transition-colors"
+                    ? "text-[var(--oj-text-primary)] font-medium"
+                    : "text-[var(--oj-text-secondary)] hover:text-[var(--oj-text-primary)] transition-colors"
                 )}
               >
                 {item.label}
@@ -70,53 +86,81 @@ export function Topbar() {
       {/* Center: Search */}
       <div className="flex items-center gap-4 flex-1 justify-center">
         <div className="relative w-full max-w-md">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--oj-text-muted)]" />
           <input
             type="search"
             placeholder="Search sessions, agents..."
-            className="w-full pl-8 pr-3 py-1.5 text-sm bg-input border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:border-ring"
+            className="w-full pl-8 pr-3 py-1.5 text-sm bg-[var(--oj-surface-2)] border border-[var(--oj-border)] rounded-md text-[var(--oj-text-primary)] placeholder-[var(--oj-text-muted)] focus:outline-none focus:border-[var(--oj-accent)] transition-colors"
           />
         </div>
       </div>
 
-      {/* Right side: SSE status indicator, Live clock, Notifications, User */}
+      {/* Right side: SSE status, Clock, Notifications, User */}
       <div className="flex items-center gap-4">
         {/* SSE Indicator */}
         <div className="flex items-center gap-2 text-xs">
-          {sseStatus === "connected" || sseStatus === "reconnecting" ? (
-            <Wifi className="h-4 w-4 text-green-500" />
-          ) : (
-            <WifiOff className="h-4 w-4 text-red-500" />
-          )}
-          <span className="hidden sm:inline text-muted-foreground">
-            {sseStatus === "connected" ? "Live" : sseStatus}
+          <span
+            className={cn(
+              "h-2 w-2 rounded-full inline-block",
+              sseStatus === "connected" && "bg-emerald-500",
+              (sseStatus === "reconnecting" || sseStatus === "connecting") && "bg-amber-500 animate-pulse",
+              sseStatus === "disconnected" && "bg-slate-500"
+            )}
+          />
+          <span className="hidden sm:inline text-[var(--oj-text-muted)]">
+            {sseStatus === "connected"
+              ? "Live"
+              : sseStatus === "reconnecting"
+              ? "Reconnecting..."
+              : sseStatus === "connecting"
+              ? "Connecting..."
+              : "Disconnected"}
           </span>
+          {sseStatus === "disconnected" && (
+            <button
+              type="button"
+              onClick={() => sseStore.requestRetry()}
+              className="text-xs text-[var(--oj-accent)] hover:underline font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
+              aria-label="Retry connection"
+            >
+              Retry
+            </button>
+          )}
         </div>
 
-        {/* Live Clock */}
-        <div className="font-mono text-sm text-muted-foreground hidden md:block">
+        {/* Live Clock — centered, monospaced */}
+        <div className="font-mono text-sm text-[var(--oj-text-muted)] hidden md:block">
           {currentTime}
         </div>
 
         {/* Notifications */}
         <button
           type="button"
-          className="relative p-2 rounded-md hover:bg-muted text-foreground"
+          className="relative p-2 rounded-md hover:bg-[var(--oj-surface-hover)] text-[var(--oj-text-secondary)] transition-colors"
           aria-label="Notifications"
         >
           <Bell className="h-4 w-4" />
-          <span className="absolute top-1 right-1 h-2 w-2 bg-destructive rounded-full" />
+          <span className="absolute top-1 right-1 h-2 w-2 bg-[var(--oj-danger)] rounded-full" />
         </button>
 
         {/* User Menu */}
         <DropdownMenu>
-          <DropdownMenuTrigger className="p-2 rounded-md hover:bg-muted text-foreground">
+          <DropdownMenuTrigger className="p-2 rounded-md hover:bg-[var(--oj-surface-hover)] text-[var(--oj-text-secondary)] transition-colors">
             <User className="h-4 w-4" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-card border-border">
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive">Sign out</DropdownMenuItem>
+          <DropdownMenuContent align="end" className="bg-[var(--oj-surface-1)] border-[var(--oj-border)]">
+            <DropdownMenuItem className="text-[var(--oj-text-primary)]">Profile</DropdownMenuItem>
+            <DropdownMenuItem className="text-[var(--oj-text-primary)]">Settings</DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-[var(--oj-danger)]"
+              onClick={async () => {
+                const supabase = createBrowserClient();
+                await supabase.auth.signOut();
+                router.push('/login');
+              }}
+            >
+              Sign out
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

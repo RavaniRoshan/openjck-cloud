@@ -2,6 +2,7 @@
 
 import { SessionStepTraceItem } from "./session-step-trace-item";
 import { StepSkeleton } from "./step-skeleton";
+import { FileText } from "lucide-react";
 
 interface SessionStepTraceProps {
   steps?: Array<{
@@ -42,8 +43,9 @@ export function SessionStepTrace({ steps, isLoading }: SessionStepTraceProps) {
 
   if (!steps || steps.length === 0) {
     return (
-      <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
-        No steps recorded
+      <div className="flex flex-col items-center justify-center h-40 px-4 text-center animate-fade-up">
+        <FileText className="h-8 w-8 text-[var(--oj-text-muted)] mb-2" />
+        <p className="text-sm text-[var(--oj-text-muted)]">No steps recorded yet</p>
       </div>
     );
   }

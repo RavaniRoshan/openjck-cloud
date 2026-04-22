@@ -128,6 +128,6 @@ export async function GET(request: Request) {
     'pending-org-name=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax'
   );
 
-  // Redirect to sessions
-  return NextResponse.redirect(new URL('/app/sessions', origin));
-}
+   // Redirect to sessions
+   return NextResponse.redirect(new URL('/sessions', origin));
+ }

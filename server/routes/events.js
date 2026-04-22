@@ -83,15 +83,19 @@ router.post('/', async (req, res) => {
            break;
          }
 
-        case 'session.step': {
-          const usage = event.usage || {};
-          const request = event.request || {};
-          const updated = await accumulateTokens(sessionId, orgId, {
-            input_tokens: usage.input_tokens || 0,
-            output_tokens: usage.output_tokens || 0,
-            model: request.model || 'claude-sonnet-4',
-            tool_call_count: usage.tool_call_count || 0,
-          });
+         case 'session.step': {
+           const usage = event.usage || {};
+           const request = event.request || {};
+           const sdk = event.sdk || {};
+           const provider = sdk.provider;  // e.g., "anthropic", "groq", "openai"
+           
+           const updated = await accumulateTokens(sessionId, orgId, {
+             input_tokens: usage.input_tokens || 0,
+             output_tokens: usage.output_tokens || 0,
+             model: request.model || 'claude-sonnet-4',
+             tool_call_count: usage.tool_call_count || 0,
+             provider: provider,  // may be undefined for legacy
+           });
 
           if (event.step_packet) {
             const stepNumber = event.step_number ?? usage.step_number ?? 0;

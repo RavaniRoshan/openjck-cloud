@@ -17,9 +17,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
-import { formatDistanceToNow } from "date-fns";
-import { Search, Play, FileText, ExternalLink, Circle } from "lucide-react";
+ import { cn } from "@/lib/utils";
+ import { formatDistanceToNow, format } from "date-fns";
+ import { Search, Play, FileText, ExternalLink, Circle } from "lucide-react";
+ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 function useOrgId(): string | null {
   const [orgId, setOrgId] = useState<string | null>(null);
@@ -135,76 +136,95 @@ export default function ReplayPage() {
           <div className="px-4 py-3 border-b border-border bg-surface">
             <h2 className="text-sm font-semibold text-foreground">Recorded Sessions</h2>
           </div>
-          {filteredSessions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 px-4 text-center">
-              <Circle className="h-10 w-10 text-muted-foreground/30 mb-3" />
-              <p className="text-sm font-medium text-foreground mb-1">No replayable sessions found</p>
-              <p className="text-xs text-muted-foreground max-w-xs">
-                Replay becomes available when recording is enabled. Sessions are recorded by default
-                with <code className="text-accent">record=True</code> in ClawSession.
-              </p>
-            </div>
-          ) : (
-            <div className="max-h-[500px] overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border hover:bg-muted">
-                    <TableHead className="text-muted-foreground font-mono text-xs">SESSION</TableHead>
-                    <TableHead className="text-muted-foreground text-xs">TYPE</TableHead>
-                    <TableHead className="text-muted-foreground text-xs">STATUS</TableHead>
-                    <TableHead className="text-muted-foreground text-xs">REC</TableHead>
-                    <TableHead className="text-muted-foreground text-xs">STARTED</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredSessions.map((session) => (
-                    <TableRow
-                      key={session.session_id}
-                      className={cn(
-                        "border-border hover:bg-muted cursor-pointer",
-                        selectedSessionId === session.session_id && "bg-accent/10 border-l-2 border-l-accent"
-                      )}
-                      onClick={() => setSelectedSessionId(session.session_id)}
-                    >
-                      <TableCell className="font-mono text-xs text-foreground">
-                        {session.session_id.slice(0, 8)}
-                      </TableCell>
-                      <TableCell className="text-foreground text-xs">{session.claw_name}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={session.status} />
-                      </TableCell>
-                      <TableCell>
-                        <RecordingStatusBadge sessionId={session.session_id} />
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">
-                        {session.started_at
-                          ? formatDistanceToNow(new Date(session.started_at), { addSuffix: true })
-                          : "-"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </div>
+           {filteredSessions.length === 0 ? (
+             <div className="flex flex-col items-center justify-center h-64 px-4 text-center">
+               <Circle className="h-10 w-10 text-muted-foreground/30 mb-3" />
+               <p className="text-sm font-medium text-foreground mb-1">No replayable sessions found</p>
+               <p className="text-xs text-muted-foreground max-w-xs">
+                 Replay becomes available when recording is enabled. Sessions are recorded by default
+                 with <code className="text-accent">record=True</code> in ClawSession.
+               </p>
+             </div>
+           ) : (
+             <div className="rounded-md border border-border overflow-hidden">
+               <div className="px-4 py-3 border-b border-border bg-surface">
+                 <h2 className="text-sm font-semibold text-foreground">Recorded Sessions</h2>
+               </div>
+               <div className="max-h-[500px] overflow-x-auto overflow-y-auto">
+                 <Table>
+                   <TableHeader>
+                     <TableRow className="border-border hover:bg-muted">
+                       <TableHead className="text-muted-foreground font-mono text-xs">SESSION</TableHead>
+                       <TableHead className="text-muted-foreground text-xs">TYPE</TableHead>
+                       <TableHead className="text-muted-foreground text-xs">STATUS</TableHead>
+                       <TableHead className="text-muted-foreground text-xs">REC</TableHead>
+                       <TableHead className="text-muted-foreground text-xs">STARTED</TableHead>
+                     </TableRow>
+                   </TableHeader>
+                   <TableBody>
+                     {filteredSessions.map((session) => (
+                       <TableRow
+                         key={session.session_id}
+                         className={cn(
+                           "border-border hover:bg-muted cursor-pointer",
+                           selectedSessionId === session.session_id && "bg-accent/10 border-l-2 border-l-accent"
+                         )}
+                         onClick={() => setSelectedSessionId(session.session_id)}
+                       >
+                         <TableCell className="font-mono text-xs text-foreground">
+                           {session.session_id.slice(0, 8)}
+                         </TableCell>
+                         <TableCell className="font-mono font-bold text-foreground text-xs">{session.claw_name}</TableCell>
+                         <TableCell>
+                           <StatusBadge status={session.status} />
+                         </TableCell>
+                         <TableCell>
+                           <RecordingStatusBadge sessionId={session.session_id} />
+                         </TableCell>
+                         <TableCell className="font-mono text-muted-foreground text-xs">
+      {session.started_at ? (
+        <Tooltip>
+          <TooltipTrigger>
+            <span className="cursor-help">
+              {formatDistanceToNow(new Date(session.started_at), { addSuffix: true })}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            {format(new Date(session.started_at), "MMM d, yyyy HH:mm:ss O")}
+          </TooltipContent>
+        </Tooltip>
+      ) : "-"}
+                         </TableCell>
+                       </TableRow>
+                     ))}
+                   </TableBody>
+                 </Table>
+               </div>
+              </div>
+            )}
+          </div>
 
-        {/* Right: Step trace view */}
+          {/* Right: Step trace view */}
         <div className="rounded-md border border-border overflow-hidden">
           <div className="px-4 py-3 border-b border-border bg-surface flex items-center justify-between">
             <h2 className="text-sm font-semibold text-foreground">Step Trace</h2>
             {selectedSession && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground font-mono">
-                  {selectedSession.session_id.slice(0, 8)}
-                </span>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <span className="text-xs text-muted-foreground font-mono cursor-help">
+                      {selectedSession.session_id.slice(0, 8)}...
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>{selectedSession.session_id}</TooltipContent>
+                </Tooltip>
                 <Badge variant="outline" className="text-xs text-muted-foreground">
                   {selectedSession.claw_name}
                 </Badge>
-              </div>
-            )}
-          </div>
-          {!selectedSessionId ? (
+             </div>
+           )}
+         </div>
+           {!selectedSessionId ? (
             <div className="flex flex-col items-center justify-center h-64 px-4 text-center">
               <Play className="h-10 w-10 text-muted-foreground/30 mb-3" />
               <p className="text-sm font-medium text-foreground mb-1">Select a session</p>
@@ -226,50 +246,36 @@ export default function ReplayPage() {
         </div>
       </div>
 
-      {/* Info banner */}
-      <div className="rounded-md border border-border bg-surface p-4">
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <h3 className="text-sm font-semibold text-foreground mb-1">How Replay Works</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Replay runs a recorded session locally using stored step packets. You can override tool
-              outputs to test "what if" scenarios and detect divergence from the original execution.
-              The full replay engine runs in your Python code via{" "}
-              <code className="text-accent bg-accent/10 px-1 py-0.5 rounded">ReplaySession</code> —
-              not from the dashboard.
-            </p>
-            <div className="mt-3 bg-background rounded-md p-3 font-mono text-xs text-foreground">
-              <div className="text-muted-foreground"># In your Python code:</div>
-              <div>
-                <span className="text-green-500">from</span> openjck <span className="text-green-500">import</span> ReplaySession
-              </div>
-              <div className="mt-1">
-                replay = ReplaySession.<span className="text-accent">load</span>(
-                <span className="text-amber-400">"session-uuid"</span>)
-              </div>
-              <div>
-                result = replay.<span className="text-accent">run</span>(overrides={"{"}
-                <span className="text-amber-400">"read_file"</span>:{" "}
-                <span className="text-green-500">lambda</span> x: {"{"}"content":{" "}
-                <span className="text-amber-400">"mocked"</span>{"}"}{"}"})
-              </div>
-              <div className="mt-1 text-muted-foreground">
-                # result.diverged_steps tells you what changed
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+       {/* Info banner */}
+       <div className="rounded-md border border-[var(--oj-border)] bg-[var(--oj-surface-1)] p-4">
+         <h3 className="text-sm font-semibold text-[var(--oj-text-primary)] mb-2">How Replay Works</h3>
+         <p className="text-xs text-[var(--oj-text-muted)] leading-relaxed mb-3">
+           Replay runs a recorded session locally using stored step packets. You can override tool
+           outputs to test "what if" scenarios and detect divergence from the original execution.
+           The full replay engine runs in your Python code via{" "}
+           <code className="text-[var(--oj-accent)] bg-[var(--oj-accent-glow)] px-1 py-0.5 rounded">ReplaySession</code> —
+           not from the dashboard.
+         </p>
+         <pre className="text-xs font-mono bg-[var(--oj-surface-2)] p-3 rounded overflow-x-auto text-[var(--oj-text-primary)]">
+{`# In your Python code:
+from openjck import ReplaySession
+replay = ReplaySession.load("session-uuid")
+result = replay.run(overrides={
+  "read_file": lambda x: {"content": "mocked"}
+})
+# result.diverged_steps tells you what changed`}
+         </pre>
+       </div>
     </div>
   );
 }
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
-    running: "bg-amber-500/20 text-amber-500 border-amber-500/50",
-    completed: "bg-green-500/20 text-green-500 border-green-500/50",
-    failed: "bg-red-500/20 text-red-500 border-red-500/50",
-    terminated: "bg-gray-500/20 text-gray-500 border-gray-500/50",
+    running: "bg-amber-500/[0.15] text-amber-500 border-amber-500/50",
+    completed: "bg-green-500/[0.14] text-green-500 border-green-500/50",
+    failed: "bg-red-500/[0.14] text-red-500 border-red-500/50",
+    terminated: "text-gray-400 border border-gray-500/50",
   };
 
   return (

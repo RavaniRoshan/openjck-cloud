@@ -2,8 +2,10 @@ import { Router } from 'express';
 import { getSession, updateSession } from '../models/clawSession.js';
 import { getSteps, hasRecording } from '../models/stepPackets.js';
 import { analyzeSession } from '../services/anthropicClient.js';
+import { resolveAnthropicKey, markKeyVerified } from '../models/orgAiKey.js';
+import Anthropic from '@anthropic-ai/sdk';
 
-const router = Router();
+const router = Router({ mergeParams: true });
 
 /**
  * In-memory rate limit store for AI Fix endpoints
@@ -44,19 +46,18 @@ function checkRateLimit(sessionId) {
 /**
  * Format a step for the last 5 steps summary
  */
-function formatStepSummary(stepPacket) {
-  const { step_number, payload } = stepPacket;
-  const { request, usage, tools, error } = payload;
-  
-  let summary = `Step ${step_number}: ${request.model}`;
+function formatStepSummary(step) {
+  const { step_number, request, usage, tools, error } = step;
+
+  let summary = `Step ${step_number}: ${request?.model || 'unknown'}`;
   if (tools && tools.length > 0) {
-    summary += ` | Tools: ${tools.map(t => t.tool_name).join(', ')}`;
+    summary += ` | Tools: ${tools.map(t => t.name).join(', ')}`;
   }
   if (error) {
     summary += ` | Error: ${error.message || 'Unknown error'}`;
   }
-  summary += ` | Cost: $${usage.step_cost_usd?.toFixed(6) || '0.000000'}`;
-  
+  summary += ` | Cost: $${usage?.cost?.toFixed(6) || '0.000000'}`;
+
   return summary;
 }
 
@@ -65,16 +66,13 @@ function formatStepSummary(stepPacket) {
  */
 function buildUserPrompt(session, steps, finalStep) {
   const { claw_name, status, steps: total_steps, total_cost_usd, failure_root_cause } = session;
-  
-  // Take last 5 steps before the final step
+
   const stepsBeforeFinal = steps.slice(0, -1);
   const lastFiveSteps = stepsBeforeFinal.slice(-5);
-  
-  // Format last 5 steps summary
+
   const formattedSteps = lastFiveSteps.map(formatStepSummary).join('\n');
-  
-  // Format final step in full detail
-  const finalStepFormatted = JSON.stringify(finalStep.payload, null, 2);
+
+  const finalStepFormatted = JSON.stringify(finalStep, null, 2);
   
   return `Session: ${claw_name} | Status: ${status} | Steps: ${total_steps} | Cost: $${total_cost_usd.toFixed(4)}
 
@@ -94,6 +92,7 @@ ${finalStepFormatted}`;
 router.post('/', async (req, res) => {
   const sessionId = req.params.id;
   const orgId = req.orgId;
+  let keyMode = 'hosted'; // default
 
   try {
     // 1. Rate limit check (in-memory, per session)
@@ -151,25 +150,51 @@ Rules: Be direct. No hedging. Root cause = earliest decision that made failure i
 
     const userPrompt = buildUserPrompt(session, allSteps, finalStep);
 
-    // 8. Call Anthropic API
+    // 8. Resolve Anthropic API key (BYOK or hosted)
+    let anthropicClient;
+    try {
+      const { key, mode } = await resolveAnthropicKey(orgId);
+      keyMode = mode;
+      anthropicClient = new Anthropic({ apiKey: key });
+    } catch (err) {
+      console.error('Key resolution failed:', err);
+      return res.status(500).json({ error: err.message });
+    }
+
+    // 9. Call Anthropic API
     let result;
     try {
-      result = await analyzeSession(SYSTEM_PROMPT, userPrompt);
+      result = await analyzeSession(SYSTEM_PROMPT, userPrompt, anthropicClient);
     } catch (err) {
       console.error('AI Fix analysis failed:', err);
+
+      // Special handling for BYOK auth errors
+      if (err.status === 401 && keyMode === 'byok') {
+        return res.status(400).json({
+          error: 'Your Anthropic API key is invalid or has expired. Update it in Settings → AI Keys.',
+          key_mode: 'byok',
+        });
+      }
+
       return res.status(502).json({
         error: 'Analysis service unavailable',
         details: err.message
       });
     }
 
-    // 9. Add analyzed_at timestamp
+    // 10. Add analyzed_at timestamp and key_mode
     const cachedResult = {
       ...result,
-      analyzed_at: new Date().toISOString()
+      analyzed_at: new Date().toISOString(),
+      _meta: { key_mode: keyMode }
     };
 
-    // 10. Cache result in session metadata
+    // 11. Mark BYOK key as verified (non-critical)
+    if (keyMode === 'byok') {
+      await markKeyVerified(orgId, 'anthropic').catch(() => {});
+    }
+
+    // 12. Cache result in session metadata
     try {
       const currentMetadata = session.metadata || {};
       const updatedMetadata = {
@@ -182,7 +207,7 @@ Rules: Be direct. No hedging. Root cause = earliest decision that made failure i
       // Continue - we still return the result, just not cached
     }
 
-    // 11. Return result
+    // 13. Return result
     res.json(cachedResult);
 
   } catch (err) {
@@ -196,9 +221,8 @@ Rules: Be direct. No hedging. Root cause = earliest decision that made failure i
  */
 function buildDeeperUserPrompt(followUp, originalResult, session, steps, finalStep) {
   const { claw_name, status, steps: total_steps, total_cost_usd } = session;
-  const finalStepFormatted = JSON.stringify(finalStep.payload, null, 2);
-  
-  // Build context
+  const finalStepFormatted = JSON.stringify(finalStep, null, 2);
+
   const stepsBeforeFinal = steps.slice(0, -1);
   const lastFiveSteps = stepsBeforeFinal.slice(-5);
   const formattedSteps = lastFiveSteps.map(formatStepSummary).join('\n');
@@ -230,6 +254,7 @@ router.post('/deeper', async (req, res) => {
   const sessionId = req.params.id;
   const orgId = req.orgId;
   const { follow_up } = req.body;
+  let keyMode = 'hosted';
 
   if (!follow_up || typeof follow_up !== 'string' || follow_up.trim().length === 0) {
     return res.status(400).json({ error: 'Missing or invalid follow_up field in request body' });
@@ -294,23 +319,43 @@ Rules: Be direct. No hedging. Root cause = earliest decision that made failure i
 
     const userPrompt = buildDeeperUserPrompt(follow_up.trim(), originalResult, session, allSteps, finalStep);
 
-    // 7. Call Anthropic API
+    // 7. Resolve Anthropic API key
+    let anthropicClient;
+    try {
+      const { key, mode } = await resolveAnthropicKey(orgId);
+      keyMode = mode;
+      anthropicClient = new Anthropic({ apiKey: key });
+    } catch (err) {
+      console.error('Key resolution failed:', err);
+      return res.status(500).json({ error: err.message });
+    }
+
+    // 8. Call Anthropic API
     let result;
     try {
-      result = await analyzeSession(SYSTEM_PROMPT, userPrompt);
+      result = await analyzeSession(SYSTEM_PROMPT, userPrompt, anthropicClient);
     } catch (err) {
       console.error('AI Fix deeper analysis failed:', err);
+
+      if (err.status === 401 && keyMode === 'byok') {
+        return res.status(400).json({
+          error: 'Your Anthropic API key is invalid or has expired. Update it in Settings → AI Keys.',
+          key_mode: 'byok',
+        });
+      }
+
       return res.status(502).json({
         error: 'Analysis service unavailable',
         details: err.message
       });
     }
 
-    // 8. Return result (NOT cached)
+    // 9. Return result (NOT cached)
     const response = {
       ...result,
       analyzed_at: new Date().toISOString(),
-      based_on_previous: true
+      based_on_previous: true,
+      _meta: { key_mode: keyMode }
     };
 
     res.json(response);

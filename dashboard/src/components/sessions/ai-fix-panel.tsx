@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Loader2, AlertTriangle, RefreshCw } from "lucide-react";
-import { toast } from "sonner";
+import { Loader2, AlertTriangle, RefreshCw, ExternalLink } from "lucide-react";
 import { useAIFix, useAIFixDeeper } from "@/hooks/use-ai-fix";
 import { AiFixResult, AiFixState } from "@/lib/types";
 import {
@@ -18,6 +18,7 @@ import {
 interface AiFixPanelProps {
   sessionId: string;
   hasRecording: boolean;
+  cachedResult?: AiFixResult;
 }
 
 function ConfidenceBadge({ confidence }: { confidence: string }) {
@@ -48,7 +49,7 @@ function ConfidenceBadge({ confidence }: { confidence: string }) {
 function FixTypeBadge({ fix_type }: { fix_type: string }) {
   const colors: Record<string, string> = {
     prompt: "border-blue-500 text-blue-500",
-    tool_definition: "border-purple-500 text-purple-500",
+    tool_definition: "border-cyan-500 text-cyan-500",
     guard_config: "border-amber-500 text-amber-500",
     code: "border-green-500 text-green-500",
     unknown: "border-muted-foreground text-muted-foreground",
@@ -80,7 +81,7 @@ function AnalysisCard({
 }) {
   return (
     <div className="mt-4 border border-amber-500/50 bg-amber-500/5 rounded-lg overflow-hidden">
-      <div className="p-4 pb-3">
+        <div className="p-4 pb-3">
         <div className="flex items-start justify-between mb-3">
           <h3 className="text-sm font-semibold flex items-center gap-2">
             {isFollowUp ? (
@@ -95,6 +96,17 @@ function AnalysisCard({
           <div className="flex items-center gap-2">
             <ConfidenceBadge confidence={result.confidence} />
             <FixTypeBadge fix_type={result.fix_type} />
+            {/* Key mode indicator */}
+            {!isFollowUp && result._meta?.key_mode === 'byok' && (
+              <span className="text-xs text-[var(--oj-text-muted)] font-mono">
+                via your key
+              </span>
+            )}
+            {!isFollowUp && result._meta?.key_mode === 'hosted' && (
+              <span className="text-xs text-[var(--oj-text-muted)]">
+                via OpenJCK
+              </span>
+            )}
           </div>
         </div>
         {isFollowUp && result.based_on_previous && (
@@ -191,34 +203,57 @@ function ErrorCard({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-export function AiFixPanel({ sessionId, hasRecording }: AiFixPanelProps) {
-  const [state, setState] = useState<AiFixState>("idle");
+export function AiFixPanel({ sessionId, hasRecording, cachedResult }: AiFixPanelProps) {
+  const router = useRouter();
+  const [state, setState] = useState<AiFixState>(() => cachedResult ? "result" : "idle");
   const [followUpInput, setFollowUpInput] = useState("");
   const [hasDeeper, setHasDeeper] = useState(false);
   const [deeperResults, setDeeperResults] = useState<AiFixResult[]>([]);
+  const [errorDetails, setErrorDetails] = useState<{ key_mode?: string; error?: string } | null>(null);
 
   const aiFixMutation = useAIFix();
   const aiFixDeeperMutation = useAIFixDeeper();
 
   // Reset state when session changes
   useEffect(() => {
-    setState("idle");
+    if (cachedResult) {
+      setState("result");
+    } else {
+      setState("idle");
+    }
     setFollowUpInput("");
     setHasDeeper(false);
     setDeeperResults([]);
-  }, [sessionId]);
+  }, [sessionId, cachedResult]);
 
   const handleStartAnalysis = () => {
     if (!hasRecording) return;
 
+    if (cachedResult) {
+      setState("result");
+      return;
+    }
+
+    if (aiFixMutation.data) {
+      setState("result");
+      return;
+    }
+
     setState("loading");
+    setErrorDetails(null);
     aiFixMutation.mutate(sessionId, {
       onSuccess: () => {
         setState("result");
       },
-      onError: (error) => {
-        // Check for 429 rate limit
-        if (error.message.includes("429") || error.message.includes("Rate limit")) {
+      onError: (error: any) => {
+        // Check for BYOK key failure
+        if (error.response?.data?.key_mode === 'byok') {
+          setErrorDetails({
+            key_mode: 'byok',
+            error: error.response.data.error
+          });
+          setState("error");
+        } else if (error.message.includes("429") || error.message.includes("Rate limit")) {
           setState("rate_limited");
         } else {
           setState("error");
@@ -265,6 +300,27 @@ export function AiFixPanel({ sessionId, hasRecording }: AiFixPanelProps) {
 
   // Error state
   if (state === "error") {
+    // Special error state for BYOK key failure
+    if (errorDetails?.key_mode === 'byok') {
+      return (
+        <div className="p-4 rounded-md border border-[var(--oj-danger)] bg-[var(--oj-danger-muted)]">
+          <p className="text-sm font-medium text-[var(--oj-danger)]">Your Anthropic key failed</p>
+          <p className="text-xs text-[var(--oj-text-muted)] mt-1">
+            {errorDetails.error}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3 text-xs"
+            onClick={() => router.push('/settings/ai-keys')}
+          >
+            Update key in Settings
+            <ExternalLink className="h-3 w-3 ml-1" />
+          </Button>
+        </div>
+      );
+    }
+
     return (
       <div className="p-4">
         <ErrorCard onRetry={handleStartAnalysis} />
@@ -289,38 +345,43 @@ export function AiFixPanel({ sessionId, hasRecording }: AiFixPanelProps) {
   if (state === "idle") {
     const disabled = !hasRecording;
 
-    return (
-      <div className="p-6 flex flex-col items-center justify-center">
+  const button = (
+    <Button
+      variant="outline"
+      size="lg"
+      onClick={handleStartAnalysis}
+      disabled={disabled}
+      className="gap-2 min-w-[200px]"
+    >
+      🔍 AI Fix
+    </Button>
+  );
+
+  return (
+    <div className="p-6 flex flex-col items-center justify-center">
+      {disabled ? (
         <Tooltip>
-          <TooltipTrigger>
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={handleStartAnalysis}
-              disabled={disabled}
-              className="gap-2 min-w-[200px]"
-            >
-              🔍 AI Fix
-            </Button>
-          </TooltipTrigger>
+          <TooltipTrigger>{button}</TooltipTrigger>
           <TooltipContent>
             <p className="max-w-xs">
-              AI Fix requires v0.6+ session recordings. This session has no
-              recording available.
+              AI Fix requires v0.6+ session recordings.
             </p>
           </TooltipContent>
         </Tooltip>
-        {!hasRecording && (
-          <p className="text-xs text-muted-foreground mt-2">
-            Analysis available for completed/terminated sessions with recordings
-          </p>
-        )}
-      </div>
-    );
+      ) : (
+        button
+      )}
+      {!hasRecording && (
+        <p className="text-xs text-muted-foreground mt-2">
+          AI Fix requires v0.6+ session recordings.
+        </p>
+      )}
+    </div>
+  );
   }
 
   // Result state
-  const mainResult = aiFixMutation.data;
+  const mainResult = aiFixMutation.data || cachedResult;
   if (!mainResult) return null;
 
   return (
@@ -335,21 +396,20 @@ export function AiFixPanel({ sessionId, hasRecording }: AiFixPanelProps) {
       {/* Go deeper input */}
       {!hasDeeper && (
         <div className="mt-4 pt-4 border-t border-border">
-          <Label className="text-xs text-muted-foreground mb-2 block">
-            Have a follow-up question?
-          </Label>
+            <Label className="text-xs text-muted-foreground mb-2 block">
+              Go deeper →
+            </Label>
           <div className="flex gap-2">
             <Input
               placeholder="Ask a follow-up question..."
               value={followUpInput}
               onChange={(e) => setFollowUpInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
+                if (e.key === "Enter" && !e.shiftKey && followUpInput.trim()) {
                   e.preventDefault();
                   handleDeeperAnalysis();
                 }
               }}
-              disabled={!followUpInput.trim()}
               className="flex-1"
             />
             <Button

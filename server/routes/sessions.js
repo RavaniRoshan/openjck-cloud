@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import { getSession, listSessions, endSession } from '../models/clawSession.js';
+import { getSession, listSessions, endSession, terminateSession } from '../models/clawSession.js';
 import { getSteps, hasRecording } from '../models/stepPackets.js';
 import { emitToOrg } from '../sse-emitter.js';
+import { validateUUIDParam } from '../middleware/validate.js';
 import aiFixRouter from './ai-fix.js';
 
 const router = Router();
@@ -25,7 +26,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', validateUUIDParam('id'), async (req, res) => {
   try {
     const session = await getSession(req.params.id, req.orgId);
     if (!session) return res.status(404).json({ error: 'Session not found' });
@@ -35,7 +36,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.get('/:id/steps', async (req, res) => {
+router.get('/:id/steps', validateUUIDParam('id'), async (req, res) => {
   try {
     const steps = await getSteps(req.params.id, req.orgId);
     res.json(steps);
@@ -44,7 +45,7 @@ router.get('/:id/steps', async (req, res) => {
   }
 });
 
-router.get('/:id/has-recording', async (req, res) => {
+router.get('/:id/has-recording', validateUUIDParam('id'), async (req, res) => {
   try {
     const result = await hasRecording(req.params.id, req.orgId);
     res.json(result);
@@ -53,13 +54,35 @@ router.get('/:id/has-recording', async (req, res) => {
   }
 });
 
-router.post('/:id/terminate', async (req, res) => {
+router.post('/:id/terminate', validateUUIDParam('id'), async (req, res) => {
   try {
-    const ended = await endSession(req.params.id, req.orgId, {
-      status: 'terminated',
-      ended_at: new Date().toISOString(),
-    });
-    emitToOrg(req.orgId, 'session_ended', ended);
+    const sessionId = req.params.id;
+    const orgId = req.orgId;
+
+    // Get current session state
+    const session = await getSession(sessionId, orgId);
+
+    if (!session) {
+      return res.status(404).json({
+        error: 'Session not found',
+        code: 'SESSION_NOT_FOUND'
+      });
+    }
+
+    // Check if already terminal (idempotent)
+    const terminalStatuses = ['completed', 'failed', 'terminated'];
+    if (terminalStatuses.includes(session.status)) {
+      return res.json({
+        ...session,
+        _note: `Session already ${session.status}`,
+        _idempotent: true
+      });
+    }
+
+    // Perform termination with atomic guard strike
+    const ended = await terminateSession(sessionId, orgId);
+
+    emitToOrg(orgId, 'session_ended', ended);
     res.json(ended);
   } catch (err) {
     res.status(500).json({ error: err.message });

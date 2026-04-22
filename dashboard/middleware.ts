@@ -1,8 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
@@ -33,63 +33,70 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const { data: { session } } = await supabase.auth.getSession();
 
-  // Public routes - allow without auth
-  if (request.nextUrl.pathname.startsWith("/(public)")) {
+  const pathname = request.nextUrl.pathname;
+
+  // Public routes: no auth required
+  const publicRoutes = ['/'];
+  if (publicRoutes.includes(pathname)) {
     return response;
   }
 
-  // Auth routes - redirect to home if already authenticated
-  if (request.nextUrl.pathname.startsWith("/(auth)")) {
+  // Auth routes: login and signup
+  const authRoutes = ['/login', '/signup'];
+  if (authRoutes.includes(pathname)) {
     if (session) {
-      // Check if user has org membership
+      // Fetch org membership to decide where to redirect
       const { data: member } = await supabase
         .from('organization_members')
         .select('org_id')
         .eq('user_id', session.user.id)
         .single();
 
-      if (member) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/app/sessions";
-        return NextResponse.redirect(url);
+       if (member) {
+         // Logged in with org → go to sessions
+         return NextResponse.redirect(new URL('/sessions', request.url));
+       } else {
+        // Logged in but no org → go to signup to create one
+        return NextResponse.redirect(new URL('/signup', request.url));
       }
-      // If authenticated but no org, allow to stay on auth routes (maybe going to /signup)
     }
+    // Not logged in — allow to see auth pages
     return response;
   }
 
-  // Protected app routes - require auth + org membership
-  if (request.nextUrl.pathname.startsWith("/(app)")) {
-    if (!session) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/auth/login";
-      return NextResponse.redirect(url);
-    }
-
-    // Check org membership
-    const { data: member } = await supabase
-      .from('organization_members')
-      .select('org_id')
-      .eq('user_id', session.user.id)
-      .single();
-
-    if (!member) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/signup";
-      return NextResponse.redirect(url);
-    }
+  // All other routes require authentication
+  if (!session) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
   }
+
+  // Check org membership for protected routes
+  const { data: member } = await supabase
+    .from('organization_members')
+    .select('org_id')
+    .eq('user_id', session.user.id)
+    .single();
+
+  if (!member) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/signup';
+    return NextResponse.redirect(url);
+  }
+
+  // Attach orgId to request for downstream routes (e.g., SSE)
+  (request as any).orgId = member.org_id;
+
+  // Set cache control for protected pages to prevent back-button caching
+  response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
 
   return response;
 }
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico).*)",
     "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };

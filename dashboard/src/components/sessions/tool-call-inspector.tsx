@@ -4,12 +4,13 @@ import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
 
 interface ToolCallInspectorProps {
   tools?: Array<{
     tool_name: string;
     tool_input: Record<string, unknown>;
+    tool_output?: Record<string, unknown> | null;
     fingerprint?: string;
   }>;
 }
@@ -29,7 +30,7 @@ export function ToolCallInspector({ tools }: ToolCallInspectorProps) {
               className="w-full justify-start px-3 py-2 h-auto font-mono text-xs"
             >
               <ChevronRight className="mr-2 size-4 transition-transform ui-data-[state=open]:rotate-90" />
-              <span className="font-bold text-foreground">{tool.tool_name}</span>
+               <span className="font-bold font-mono text-foreground">{tool.tool_name}</span>
               {tool.fingerprint && (
                 <span className="ml-2 text-muted-foreground font-normal">
                   ({tool.fingerprint})
@@ -45,6 +46,14 @@ export function ToolCallInspector({ tools }: ToolCallInspectorProps) {
                   {JSON.stringify(tool.tool_input, null, 2)}
                 </pre>
               </div>
+              {tool.tool_output !== undefined && (
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground mb-1">OUTPUT</div>
+                  <pre className="bg-background border border-border rounded p-2 overflow-x-auto text-xs font-mono text-foreground">
+                    {JSON.stringify(tool.tool_output, null, 2)}
+                  </pre>
+                </div>
+              )}
             </div>
           </CollapsibleContent>
         </Collapsible>

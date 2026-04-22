@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openjck"
-version = "0.3.0"
+version = "0.4.0"
 description = "OpenJCK Python SDK - Observability and reliability runtime for autonomous AI agent systems"
 readme = "README.md"
 license = {text = "Proprietary"}
@@ -12,6 +12,7 @@ authors = [{name = "OpenJCK Team"}]
 requires-python = ">=3.9"
 dependencies = [
     "anthropic>=0.45.0",
+    "openai>=1.0.0",  # OpenAI-compatible provider support
 ]
 classifiers = [
     "Development Status :: 4 - Beta",

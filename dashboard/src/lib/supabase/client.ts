@@ -1,14 +1,20 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-export function createBrowserClient() {
-  return createClient(supabaseUrl, supabaseAnonKey, {
+let client: SupabaseClient | undefined;
+
+export function createBrowserClient(): SupabaseClient {
+  if (client) return client;
+
+  client = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
     },
   });
+
+  return client;
 }

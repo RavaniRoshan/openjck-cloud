@@ -3,6 +3,17 @@ import { getFleetHealth } from './models/fleet.js';
 const orgConnections = new Map();
 const orgTimers = new Map(); // orgId -> interval ID
 
+/**
+ * Get connection count for an org
+ */
+export function getConnectionCount(orgId) {
+  const connections = orgConnections.get(orgId);
+  return connections?.size || 0;
+}
+
+/**
+ * Emit event to all connections in an org
+ */
 export function emitToOrg(orgId, eventName, data) {
   const connections = orgConnections.get(orgId);
   if (!connections?.size) return;

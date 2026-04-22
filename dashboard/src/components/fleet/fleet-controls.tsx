@@ -38,7 +38,7 @@ function SelectInput({
     <select
       value={value}
       onChange={(e) => onValueChange(e.target.value)}
-      className="h-9 rounded-md border border-border bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+      className="h-9 rounded-md border border-[var(--oj-border)] bg-[var(--oj-surface-1)] px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--oj-accent)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-[var(--oj-text-primary)]"
     >
       {children}
     </select>
@@ -54,10 +54,10 @@ export function FleetControls({
   setSearchQuery,
 }: FleetControlsProps) {
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex flex-wrap items-center gap-4">
       {/* Density Selector */}
       <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">Density:</span>
+        <span className="text-sm text-[var(--oj-text-muted)]">Density:</span>
         <SelectInput value={density} onValueChange={(v) => setDensity(v as FleetDensity)}>
           {densityOptions.map((option) => (
             <option key={option.value} value={option.value}>
@@ -69,7 +69,7 @@ export function FleetControls({
 
       {/* Time Window Selector */}
       <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">Window:</span>
+        <span className="text-sm text-[var(--oj-text-muted)]">Window:</span>
         <SelectInput value={timeWindow} onValueChange={(v) => setTimeWindow(v as TimeWindow)}>
           {timeWindowOptions.map((option) => (
             <option key={option.value} value={option.value}>
@@ -86,7 +86,7 @@ export function FleetControls({
           placeholder="Search by claw name..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex h-9 w-full rounded-md border border-border bg-background px-3 py-1 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-9 w-full rounded-md border border-[var(--oj-border)] bg-[var(--oj-surface-1)] px-3 py-1 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-[var(--oj-text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--oj-accent)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-[var(--oj-text-primary)]"
         />
       </div>
     </div>

@@ -13,12 +13,12 @@ export default function PublicPage() {
           >
             Sign In
           </a>
-          <a
-            href="/app/sessions"
-            className="inline-flex items-center px-4 py-2 border border-border text-foreground rounded-md font-medium hover:bg-muted"
-          >
-            View Dashboard
-          </a>
+           <a
+             href="/sessions"
+             className="inline-flex items-center px-4 py-2 border border-border text-foreground rounded-md font-medium hover:bg-muted"
+           >
+             View Dashboard
+           </a>
         </div>
       </div>
     </div>

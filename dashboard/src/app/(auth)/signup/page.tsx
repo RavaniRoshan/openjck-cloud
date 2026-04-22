@@ -10,13 +10,14 @@ import { createBrowserClient } from "@/lib/supabase/client";
 export default function SignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [orgName, setOrgName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !orgName) {
+    if (!email || !password || !orgName) {
       setError("Please fill in all fields");
       return;
     }
@@ -29,12 +30,9 @@ export default function SignupPage() {
       document.cookie = `pending-org-name=${encodedOrgName}; path=/; max-age=1800`;
 
       const supabase = createBrowserClient();
-      // @ts-expect-error - signUp with email redirect (magic link) requires emailRedirectTo and no password
       const { error: signUpError } = await supabase.auth.signUp({
         email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+        password,
       });
 
       if (signUpError) {
@@ -78,6 +76,21 @@ export default function SignupPage() {
             required
             className="bg-card border-border text-foreground"
             placeholder="you@example.com"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="password" className="text-foreground">
+            Password
+          </Label>
+          <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="bg-card border-border text-foreground"
+            placeholder="••••••••"
           />
         </div>
 

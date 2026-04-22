@@ -22,7 +22,12 @@ export async function rateLimit(req, res, next) {
   }
 
   if (existing && existing.request_count >= MAX_REQUESTS_PER_WINDOW) {
-    return res.status(429).json({ error: 'Rate limit exceeded' });
+    const retryAfter = Math.ceil((WINDOW_MS - (now.getTime() % WINDOW_MS)) / 1000);
+    return res.status(429).json({ 
+      error: 'rate_limit_exceeded',
+      retry_after_seconds: retryAfter,
+      limit: MAX_REQUESTS_PER_WINDOW
+    });
   }
 
   await supabaseAdmin

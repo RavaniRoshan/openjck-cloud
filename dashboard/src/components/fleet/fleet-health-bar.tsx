@@ -12,7 +12,7 @@ interface FleetHealthBarProps {
 export function FleetHealthBar({ health, isLoading }: FleetHealthBarProps) {
   if (isLoading || !health) {
     return (
-      <div className="flex items-center gap-4 p-4 border border-border rounded-lg bg-card animate-pulse">
+      <div className="flex items-center gap-4 p-4 border border-border rounded-lg bg-card animate-skeleton-pulse">
         <div className="h-5 w-24 bg-muted rounded" />
         <div className="h-5 w-24 bg-muted rounded" />
         <div className="h-5 w-24 bg-muted rounded" />
@@ -43,10 +43,10 @@ export function FleetHealthBar({ health, isLoading }: FleetHealthBarProps) {
 
   return (
     <div className="flex items-center gap-4 p-4 border border-border rounded-lg bg-card flex-wrap">
-      <Badge className="bg-amber-500/10 text-amber-500 border-0 font-medium animate-amber-pulse">
+      <Badge className="bg-amber-500/[0.15] text-amber-500 border-0 font-medium animate-amber-pulse">
         {health.running} Running
       </Badge>
-      <Badge className="bg-green-500/10 text-green-500 border-0 font-medium">
+      <Badge className="bg-green-500/[0.14] text-green-500 border-0 font-medium">
         {health.completed} Completed
       </Badge>
       <Badge variant="destructive">

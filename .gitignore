@@ -44,6 +44,7 @@ Thumbs.db
 
 # OpenJCK specific
 .openjck/
+.opencode/
 .openjck-fallback.jsonl
 .openjck-failed-alerts.jsonl
 
