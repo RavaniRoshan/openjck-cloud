@@ -241,35 +241,15 @@ Response:
 
 ---
 
-## 🛠️ Tech Stack
-
-### Backend
-- **Node.js 20** + **Express 4**
-- **Supabase** (PostgreSQL 15 + RLS + Auth)
-- **Railway** hosting (port 7070)
-- **Cloudflare** edge (DNS, WAF, DDoS)
-
-### Dashboard
-- **Next.js 15** (App Router)
-- **TanStack Query v5** (server state)
-- **Zustand** (UI state)
-- **shadcn/ui** (component library)
-- **Vercel** hosting
-
-### Python SDK
-- **Zero dependencies** beyond `anthropic`
-- **Threading** for async HTTP (no asyncio)
-- **fallback to `.openjck-fallback.jsonl`** when offline
-
----
-
 ## 📖 Documentation
 
 - **Master Truth** — `openjck-master-truth.md` (local only — not on GitHub)
 - **Protocol v1 Spec** — `docs/protocol/v1.md`
 - **Architecture** — `skills/system-design/SKILL.md`
-- **Frontend Patterns** — `skills/frontend-patterns/SKILL.md`
-- **Design System** — `skills/design-system-patterns/SKILL.md`
+- **Frontend Patterns** — `dashboard/AGENTS.md` (Next.js 16 rules, SSE, Zustand, Auth, BYOK, Error Handling)
+- **Backend Patterns** — `server/AGENTS.md` (ES Modules, Security, BYOK, SSE, AI Fix)
+- **Design System** — Locked tokens: Charcoal + Amber (no gradients, no purple)
+- **API Reference** — See above
 
 ---
 
